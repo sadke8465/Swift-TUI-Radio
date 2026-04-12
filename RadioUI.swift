@@ -17,56 +17,90 @@ struct MarqueeText: View {
 let text: String
 let isSelected: Bool
 
+private static let separator = "   "
+
 @State private var offset: CGFloat = 0
-@State private var animating: Bool = false
+@State private var animating = false
+@State private var delayTask: Task<Void, Never>? = nil
+
+// Accurate monospaced advance width measured once via CoreText
+private static let charWidth: CGFloat = {
+    let nsFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+    let ctFont = nsFont as CTFont
+    var glyph = CGGlyph(0)
+    var char = UniChar(("M" as UnicodeScalar).value)
+    CTFontGetGlyphsForCharacters(ctFont, &char, &glyph, 1)
+    var advance = CGSize.zero
+    CTFontGetAdvancesForGlyphs(ctFont, .horizontal, &glyph, &advance, 1)
+    let w = advance.width
+    return (w > 4 && w < 20) ? w : 8.4
+}()
+
+// Render text + gap + text so the seamless reset is invisible
+private var doubledText: String { text + Self.separator + text }
 
 var body: some View {
-    GeometryReader { geo in
-        let charWidth: CGFloat = 8.4
-        let textWidth = CGFloat(text.count) * charWidth
-        let viewWidth = geo.size.width
-        let needsScroll = textWidth > viewWidth && isSelected
+    GeometryReader { geo in
+        let viewWidth = geo.size.width
+        // cycleWidth is one full loop distance: text + separator
+        let cycleWidth = CGFloat(text.count + Self.separator.count) * Self.charWidth
+        let needsScroll = cycleWidth > viewWidth && isSelected
 
-        Text(text)
-            .fixedSize(horizontal: true, vertical: false)
-            .offset(x: offset)
-            .frame(width: viewWidth, alignment: .leading)
-            .clipped()
-            .onAppear {
-                if needsScroll { triggerAnimation(textWidth: textWidth, viewWidth: viewWidth) }
-            }
-            .onChange(of: isSelected) { _, selected in
-                stopAnimation()
-                if selected && textWidth > viewWidth {
-                    // Small delay so offset reset is visible before scroll starts
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        triggerAnimation(textWidth: textWidth, viewWidth: viewWidth)
-                    }
-                }
-            }
-    }
-    .frame(height: 18)
+        Text(doubledText)
+            .fixedSize(horizontal: true, vertical: false)
+            .offset(x: offset)
+            .frame(width: viewWidth, alignment: .leading)
+            .clipped()
+            .onAppear {
+                if needsScroll { scheduleAnimation(cycleWidth: cycleWidth) }
+            }
+            .onChange(of: isSelected) { _, selected in
+                cancelAndReset()
+                if selected && cycleWidth > viewWidth {
+                    scheduleAnimation(cycleWidth: cycleWidth)
+                }
+            }
+            .onChange(of: text) { _, _ in
+                cancelAndReset()
+                if isSelected && cycleWidth > viewWidth {
+                    scheduleAnimation(cycleWidth: cycleWidth)
+                }
+            }
+            .onDisappear { delayTask?.cancel() }
+    }
+    .frame(height: 18)
 }
 
-private func stopAnimation() {
-    withAnimation(.linear(duration: 0)) {
-        offset = 0
-    }
-    animating = false
+private func cancelAndReset() {
+    delayTask?.cancel()
+    delayTask = nil
+    animating = false
+    // Bypass the animation system entirely — no flash, no queued frame
+    var t = Transaction()
+    t.disablesAnimations = true
+    withTransaction(t) { offset = 0 }
 }
 
-private func triggerAnimation(textWidth: CGFloat, viewWidth: CGFloat) {
-    guard !animating else { return }
-    animating = true
-    let totalDist = textWidth - viewWidth + 16
-    let duration = Double(totalDist) / 40.0
-    withAnimation(
-        Animation.linear(duration: duration)
-            .delay(0.8)
-            .repeatForever(autoreverses: false)
-    ) {
-        offset = -totalDist
-    }
+private func scheduleAnimation(cycleWidth: CGFloat) {
+    guard !animating else { return }
+    delayTask = Task {
+        try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s startup pause
+        guard !Task.isCancelled else { return }
+        await MainActor.run { startAnimation(cycleWidth: cycleWidth) }
+    }
+}
+
+@MainActor
+private func startAnimation(cycleWidth: CGFloat) {
+    guard !animating else { return }
+    animating = true
+    let duration = Double(cycleWidth) / 40.0
+    // Animate 0 → -cycleWidth. At the cycle boundary SwiftUI resets to 0,
+    // which is visually identical because the second text copy is now at the
+    // same pixel position as the first copy was — seamless loop, no pop.
+    withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
+        offset = -cycleWidth
+    }
 }
 
 }
@@ -76,6 +110,7 @@ struct RadioUI: View {
 
 // MARK: - State
 @State private var focus: AppFocus = .main
+@State private var keyboardMonitorInstalled = false
 @State private var mainActiveIndex: Int = 1
 @State private var allStationsActiveIndex: Int = 0
 
@@ -146,11 +181,13 @@ private var mainPanel: some View {
 
         // Visualizer
         Text(isPlaying ? calculatedVisualizerFrame : String(repeating: " ", count: 22))
-            .font(.system(size: 14, design: .monospaced))
-            .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
-            .padding(.horizontal, 4)
-            .background(Color.white)
-            .cornerRadius(2)
+            .font(.system(size: 14, design: .monospaced))
+            .contentTransition(.identity)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 24)
+            .padding(.horizontal, 4)
+            .background(Color.white)
+            .cornerRadius(2)
 
         // Volume
         VStack(alignment: .leading, spacing: 4) {
@@ -158,12 +195,14 @@ private var mainPanel: some View {
                 .font(.system(size: 14, design: .monospaced))
                 .foregroundColor(.black)
             Text(String(repeating: "░", count: Int(volume * Double(maxTicks))))
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
-                .padding(.horizontal, 4)
-                .background(Color.black)
-                .cornerRadius(2)
+                .font(.system(size: 14, design: .monospaced))
+                .foregroundColor(.white)
+                .contentTransition(.identity)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 24)
+                .padding(.horizontal, 4)
+                .background(Color.black)
+                .cornerRadius(2)
         }
         .padding(4)
         .frame(maxWidth: .infinity)
@@ -192,6 +231,7 @@ private var mainPanel: some View {
                         HStack(spacing: 4) {
                             Text(focus == .main && mainActiveIndex == favorites.count + 1 ? ">" : " ")
                                 .font(.system(size: 14, design: .monospaced))
+                                .contentTransition(.identity)
                             Text("ALL STATIONS..")
                                 .font(.system(size: 14, design: .monospaced))
                             Spacer()
@@ -201,6 +241,7 @@ private var mainPanel: some View {
                         .id("all_link")
                     }
                 }
+                .scrollIndicators(.hidden)
                 .onChange(of: mainActiveIndex) { _, newVal in
                     withAnimation {
                         if newVal == favorites.count + 1 {
@@ -244,6 +285,7 @@ private var allStationsPanel: some View {
                     }
                 }
             }
+            .scrollIndicators(.hidden)
             .onChange(of: allStationsActiveIndex) { _, newValue in
                 withAnimation { proxy.scrollTo(newValue, anchor: .center) }
             }
@@ -262,17 +304,16 @@ private func stationRow(name: String, isSelected: Bool, isFavorite: Bool) -> som
     HStack(spacing: 4) {
         Text(isSelected ? ">" : " ")
             .font(.system(size: 14, design: .monospaced))
+            .contentTransition(.identity)
             .foregroundColor(.black)
 
         MarqueeText(text: name, isSelected: isSelected)
             .font(.system(size: 14, design: .monospaced))
             .foregroundColor(.black)
 
-        if isFavorite {
-            Text("♥︎")
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundColor(.black)
-        }
+        Text(isFavorite ? "♥︎" : " ")
+            .font(.system(size: 14, design: .monospaced))
+            .foregroundColor(.black)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
 }
@@ -306,6 +347,8 @@ private func setupWindow() {
 
 // MARK: - Keyboard
 private func setupKeyboardMonitor() {
+    guard !keyboardMonitorInstalled else { return }
+    keyboardMonitorInstalled = true
     NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
         let volStep = 0.05
 
@@ -363,23 +406,27 @@ private func setupKeyboardMonitor() {
 
 // MARK: - Actions
 private func openAllStations() {
-    withAnimation(.easeInOut(duration: 0.2)) { showAllStations = true }
-    focus = .allStations
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-        if let window = NSApplication.shared.windows.first {
-            window.animator().setContentSize(NSSize(width: windowWidth * 2, height: windowHeight))
-        }
-    }
+    withAnimation(.easeInOut(duration: 0.2)) { showAllStations = true }
+    focus = .allStations
+    NSAnimationContext.runAnimationGroup { ctx in
+        ctx.duration = 0.2
+        ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        NSApplication.shared.windows.first?.animator().setContentSize(
+            NSSize(width: windowWidth * 2, height: windowHeight)
+        )
+    }
 }
 
 private func closeAllStations() {
-    withAnimation(.easeInOut(duration: 0.2)) { showAllStations = false }
-    focus = .main
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-        if let window = NSApplication.shared.windows.first {
-            window.animator().setContentSize(NSSize(width: windowWidth, height: windowHeight))
-        }
-    }
+    withAnimation(.easeInOut(duration: 0.2)) { showAllStations = false }
+    focus = .main
+    NSAnimationContext.runAnimationGroup { ctx in
+        ctx.duration = 0.2
+        ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        NSApplication.shared.windows.first?.animator().setContentSize(
+            NSSize(width: windowWidth, height: windowHeight)
+        )
+    }
 }
 
 private func toggleFavorite(_ station: Station) {
