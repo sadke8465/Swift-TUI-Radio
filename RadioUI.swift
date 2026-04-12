@@ -18,9 +18,10 @@ let text: String
 let isSelected: Bool
 
 private static let separator = "   "
+private static let scrollSpeed: CGFloat = 40.0 // points per second
 
-@State private var offset: CGFloat = 0
-@State private var animating = false
+// startDate marks when scrolling should begin (set after the startup delay)
+@State private var startDate: Date? = nil
 @State private var delayTask: Task<Void, Never>? = nil
 
 // Accurate monospaced advance width measured once via CoreText
@@ -46,27 +47,43 @@ var body: some View {
         let cycleWidth = CGFloat(text.count + Self.separator.count) * Self.charWidth
         let needsScroll = cycleWidth > viewWidth && isSelected
 
-        Text(doubledText)
-            .fixedSize(horizontal: true, vertical: false)
-            .offset(x: offset)
-            .frame(width: viewWidth, alignment: .leading)
-            .clipped()
-            .onAppear {
-                if needsScroll { scheduleAnimation(cycleWidth: cycleWidth) }
-            }
-            .onChange(of: isSelected) { _, selected in
-                cancelAndReset()
-                if selected && cycleWidth > viewWidth {
-                    scheduleAnimation(cycleWidth: cycleWidth)
+        // Use TimelineView so the offset is derived from wall-clock time rather
+        // than SwiftUI animation state. This is immune to parent view re-renders
+        // (e.g. the visualizer timer firing every 70 ms), which is what caused
+        // the jitter with the previous withAnimation(.repeatForever) approach.
+        Group {
+            if needsScroll, let start = startDate {
+                TimelineView(.animation) { context in
+                    let elapsed = context.date.timeIntervalSince(start)
+                    let distance = CGFloat(elapsed) * Self.scrollSpeed
+                    let xOffset = -(distance.truncatingRemainder(dividingBy: cycleWidth))
+                    Text(doubledText)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .offset(x: xOffset)
+                        .frame(width: viewWidth, alignment: .leading)
+                        .clipped()
                 }
+            } else {
+                Text(text)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(width: viewWidth, alignment: .leading)
+                    .clipped()
             }
-            .onChange(of: text) { _, _ in
-                cancelAndReset()
-                if isSelected && cycleWidth > viewWidth {
-                    scheduleAnimation(cycleWidth: cycleWidth)
-                }
-            }
-            .onDisappear { delayTask?.cancel() }
+        }
+        .onAppear {
+            if needsScroll { scheduleAnimation(cycleWidth: cycleWidth) }
+        }
+        .onChange(of: isSelected) { _, selected in
+            cancelAndReset()
+            let cw = CGFloat(text.count + Self.separator.count) * Self.charWidth
+            if selected && cw > viewWidth { scheduleAnimation(cycleWidth: cw) }
+        }
+        .onChange(of: text) { _, newText in
+            cancelAndReset()
+            let cw = CGFloat(newText.count + Self.separator.count) * Self.charWidth
+            if isSelected && cw > viewWidth { scheduleAnimation(cycleWidth: cw) }
+        }
+        .onDisappear { cancelAndReset() }
     }
     .frame(height: 18)
 }
@@ -74,32 +91,14 @@ var body: some View {
 private func cancelAndReset() {
     delayTask?.cancel()
     delayTask = nil
-    animating = false
-    // Bypass the animation system entirely — no flash, no queued frame
-    var t = Transaction()
-    t.disablesAnimations = true
-    withTransaction(t) { offset = 0 }
+    startDate = nil
 }
 
 private func scheduleAnimation(cycleWidth: CGFloat) {
-    guard !animating else { return }
     delayTask = Task {
         try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s startup pause
         guard !Task.isCancelled else { return }
-        await MainActor.run { startAnimation(cycleWidth: cycleWidth) }
-    }
-}
-
-@MainActor
-private func startAnimation(cycleWidth: CGFloat) {
-    guard !animating else { return }
-    animating = true
-    let duration = Double(cycleWidth) / 40.0
-    // Animate 0 → -cycleWidth. At the cycle boundary SwiftUI resets to 0,
-    // which is visually identical because the second text copy is now at the
-    // same pixel position as the first copy was — seamless loop, no pop.
-    withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
-        offset = -cycleWidth
+        await MainActor.run { startDate = Date() }
     }
 }
 
