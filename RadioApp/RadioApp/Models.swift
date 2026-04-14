@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AVFoundation
 
 // MARK: - Data Types
 
@@ -44,6 +45,30 @@ class AppState: ObservableObject {
     @Published var loadError: String? = nil
 
     enum SlideDirection { case left, right }
+
+    // MARK: - Audio Player
+
+    private var player: AVPlayer?
+    private var cancellables: Set<AnyCancellable> = []
+
+    init() {
+        $playingID
+            .sink { [weak self] newID in
+                guard let self = self else { return }
+                self.player?.pause()
+                self.player = nil
+
+                guard let id = newID,
+                      let station = self.stations.first(where: { $0.id == id }),
+                      let url = URL(string: station.streamURL) else { return }
+
+                let newPlayer = AVPlayer(url: url)
+                newPlayer.play()
+                self.player = newPlayer
+                print("[DEBUG][Audio] Playing: \(station.name) — \(station.streamURL)")
+            }
+            .store(in: &cancellables)
+    }
 
     var selectedGenre: Genre { Genre.allCases[selectedGenreIndex] }
 
