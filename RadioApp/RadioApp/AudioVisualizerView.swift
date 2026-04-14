@@ -13,9 +13,10 @@ struct AudioVisualizerView: View {
     var body: some View {
         TimelineView(.animation) { ctx in
             Canvas { context, size in
+                guard size.width > 0, size.height > 0 else { return }
                 let t = ctx.date.timeIntervalSinceReferenceDate
                 let totalGap  = gap * CGFloat(barCount - 1)
-                let barWidth  = (size.width - totalGap) / CGFloat(barCount)
+                let barWidth  = max(1, (size.width - totalGap) / CGFloat(barCount))
 
                 for i in 0..<barCount {
                     let pos = Double(i) / Double(barCount - 1)
