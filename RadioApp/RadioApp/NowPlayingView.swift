@@ -76,7 +76,7 @@ struct NowPlayingView: View {
                     TagView(label: station.country, darkText: true)
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
-                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: state.playingID)
+                .animation(.spring(response: 0.25, dampingFraction: 0.75), value: state.playingID)
             }
         }
     }
@@ -135,10 +135,10 @@ struct NowPlayingView: View {
                 .foregroundColor(.white)
                 .frame(width: isSelected ? 8 : 0)
                 .opacity(isSelected ? 1 : 0)
-                .animation(.spring(response: 0.25, dampingFraction: 0.85), value: isSelected)
+                .animation(.spring(response: 0.2, dampingFraction: 0.75), value: isSelected)
 
             Spacer().frame(width: isSelected ? 4 : 0)
-                .animation(.spring(response: 0.25, dampingFraction: 0.85), value: isSelected)
+                .animation(.spring(response: 0.2, dampingFraction: 0.75), value: isSelected)
 
             MarqueeText(text: station.name, color: .white, isActive: isSelected)
         }
@@ -156,15 +156,45 @@ struct NowPlayingView: View {
 
 private struct AllStationsLink: View {
     let action: () -> Void
-    @State private var isHovered = false
+    @State private var isHovered  = false
+    @State private var isPressed  = false
 
     var body: some View {
-        Text("All Stations →")
-            .font(.appFont)
-            .foregroundColor(.white)
-            .opacity(isHovered ? 1.0 : 0.7)
-            .animation(.easeOut(duration: 0.15), value: isHovered)
-            .onHover { isHovered = $0 }
-            .onTapGesture { action() }
+        HStack(spacing: 3) {
+            Text("All Stations")
+                .font(.appFont)
+            Image(systemName: "arrow.right")
+                .font(.system(size: 9, weight: .semibold))
+                // Arrow nudges right on hover — physical direction cue
+                .offset(x: isHovered ? 2 : 0)
+                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isHovered)
+        }
+        .foregroundColor(.white)
+        // Three-tier opacity: pressed dim, hovered full, default subtle
+        .opacity(isPressed ? 0.55 : (isHovered ? 1.0 : 0.65))
+        // Subtle scale-down on press — physical depth
+        .scaleEffect(isPressed ? 0.96 : 1.0, anchor: .leading)
+        .animation(.spring(response: 0.18, dampingFraction: 0.75), value: isHovered)
+        .animation(.spring(response: 0.14, dampingFraction: 0.65), value: isPressed)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.18, dampingFraction: 0.78)) {
+                isHovered = hovering
+            }
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    withAnimation(.spring(response: 0.14, dampingFraction: 0.65)) {
+                        isPressed = true
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.55)) {
+                        isPressed = false
+                    }
+                    action()
+                }
+        )
     }
 }
