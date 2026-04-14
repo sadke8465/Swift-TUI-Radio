@@ -37,6 +37,7 @@ struct ContentView: View {
         }
         .frame(width: 200, height: 400)
         .onAppear(perform: setupKeyboardMonitor)
+        .task { await state.loadAllData() }
     }
 
     // MARK: - Keyboard Monitor
