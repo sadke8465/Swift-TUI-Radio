@@ -18,6 +18,8 @@
 		AA000000000000000000B009 /* GenreTabsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000R009 /* GenreTabsView.swift */; };
 		AA000000000000000000B010 /* AllStationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000R010 /* AllStationsView.swift */; };
 		AA000000000000000000B011 /* NowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000R011 /* NowPlayingView.swift */; };
+		AA000000000000000000B012 /* GeolocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000R014 /* GeolocationService.swift */; };
+		AA000000000000000000B013 /* RadioBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000R015 /* RadioBrowserService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +36,9 @@
 		AA000000000000000000R010 /* AllStationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllStationsView.swift; sourceTree = "<group>"; };
 		AA000000000000000000R011 /* NowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingView.swift; sourceTree = "<group>"; };
 		AA000000000000000000R012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AA000000000000000000R013 /* RadioApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RadioApp.entitlements; sourceTree = "<group>"; };
+		AA000000000000000000R014 /* GeolocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeolocationService.swift; sourceTree = "<group>"; };
+		AA000000000000000000R015 /* RadioBrowserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioBrowserService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +83,9 @@
 				AA000000000000000000R010 /* AllStationsView.swift */,
 				AA000000000000000000R011 /* NowPlayingView.swift */,
 				AA000000000000000000R012 /* Info.plist */,
+				AA000000000000000000R013 /* RadioApp.entitlements */,
+				AA000000000000000000R014 /* GeolocationService.swift */,
+				AA000000000000000000R015 /* RadioBrowserService.swift */,
 			);
 			path = RadioApp;
 			sourceTree = "<group>";
@@ -161,6 +169,8 @@
 				AA000000000000000000B009 /* GenreTabsView.swift in Sources */,
 				AA000000000000000000B010 /* AllStationsView.swift in Sources */,
 				AA000000000000000000B011 /* NowPlayingView.swift in Sources */,
+				AA000000000000000000B012 /* GeolocationService.swift in Sources */,
+				AA000000000000000000B013 /* RadioBrowserService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -288,7 +298,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_ENTITLEMENTS = RadioApp/RadioApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -312,7 +322,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_ENTITLEMENTS = RadioApp/RadioApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
