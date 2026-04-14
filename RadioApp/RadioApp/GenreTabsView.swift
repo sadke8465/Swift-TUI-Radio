@@ -2,13 +2,14 @@ import SwiftUI
 
 // MARK: - GenreTabsView
 // Horizontally scrollable tab bar with animated sliding underline.
-// Spec §5.1.1 — matchedGeometryEffect for underline, Snappy spring.
+// Spec §5.1.1 — matchedGeometryEffect for underline, snappy spring.
 
 struct GenreTabsView: View {
     @Binding var selectedIndex: Int
     let onSelect: (Int) -> Void
 
     @Namespace private var underlineNS
+    @State private var hoveredIndex: Int? = nil
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -22,7 +23,7 @@ struct GenreTabsView: View {
                 .padding(.bottom, 4)
             }
             .onChange(of: selectedIndex) { idx in
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
                     proxy.scrollTo(idx, anchor: .center)
                 }
             }
@@ -32,6 +33,7 @@ struct GenreTabsView: View {
     @ViewBuilder
     private func tabButton(index: Int, proxy: ScrollViewProxy) -> some View {
         let isSelected = selectedIndex == index
+        let isHovered  = hoveredIndex == index
         Button {
             onSelect(index)
         } label: {
@@ -39,8 +41,10 @@ struct GenreTabsView: View {
                 Text(Genre.allCases[index].rawValue)
                     .font(.appFont)
                     .foregroundColor(.charcoal)
-                    .opacity(isSelected ? 1.0 : 0.4)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedIndex)
+                    // Three-tier opacity: selected full, hovered mid, default dim
+                    .opacity(isSelected ? 1.0 : (isHovered ? 0.7 : 0.4))
+                    .animation(.spring(response: 0.2, dampingFraction: 0.82), value: selectedIndex)
+                    .animation(.spring(response: 0.15, dampingFraction: 0.8), value: hoveredIndex)
 
                 if isSelected {
                     Rectangle()
@@ -55,5 +59,11 @@ struct GenreTabsView: View {
             }
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.18, dampingFraction: 0.8)) {
+                hoveredIndex = hovering ? index : nil
+            }
+            if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
     }
 }

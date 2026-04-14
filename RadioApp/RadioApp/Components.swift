@@ -48,11 +48,11 @@ struct FavoriteStarView: View {
             .scaleEffect(isFavorite ? 1.0 : 0.0)
             .rotationEffect(.degrees(isFavorite ? 0 : -45))
             .opacity(isFavorite ? 1.0 : 0.0)
-            // Asymmetric: spring in, ease-in out
+            // Asymmetric: bouncy spring pop-in, swift spring collapse
             .animation(
                 isFavorite
-                    ? .spring(response: 0.3, dampingFraction: 0.7)
-                    : .easeIn(duration: 0.18),
+                    ? .spring(response: 0.22, dampingFraction: 0.62)  // slight bounce
+                    : .spring(response: 0.18, dampingFraction: 0.9),  // no-bounce fast exit
                 value: isFavorite
             )
     }
@@ -79,15 +79,15 @@ struct PlayIndicatorView: View {
             .opacity(pulsing ? 0.5 : 1.0) // layered on top of show/hide opacity
             .animation(
                 isPlaying
-                    ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
-                    : .easeOut(duration: 0.15),
+                    ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true)
+                    : .spring(response: 0.18, dampingFraction: 0.9),
                 value: pulsing
             )
             // Show/hide (separate layer via outer opacity)
             .animation(
                 isPlaying
-                    ? .spring(response: 0.3, dampingFraction: 0.7)
-                    : .easeIn(duration: 0.18),
+                    ? .spring(response: 0.2, dampingFraction: 0.68)
+                    : .spring(response: 0.18, dampingFraction: 0.9),
                 value: isPlaying
             )
             .onChange(of: isPlaying) { playing in
@@ -119,7 +119,7 @@ struct LoadingStateView: View {
                 .font(.appFont)
                 .rotationEffect(.degrees(rotation))
                 .onAppear {
-                    withAnimation(.easeOut(duration: 0.7).repeatForever(autoreverses: false)) {
+                    withAnimation(.linear(duration: 0.85).repeatForever(autoreverses: false)) {
                         rotation = 360
                     }
                 }

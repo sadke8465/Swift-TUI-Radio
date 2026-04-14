@@ -67,9 +67,10 @@ struct AllStationsView: View {
                             isFavorite: state.favorites.contains(station.id)
                         )
                         .opacity(rowsVisible ? 1 : 0)
-                        .offset(y: rowsVisible ? 0 : 6)
+                        .offset(y: rowsVisible ? 0 : 8)
                         .animation(
-                            .easeOut(duration: 0.22).delay(Double(idx) * 0.025),
+                            .spring(response: 0.28, dampingFraction: 0.74)
+                                .delay(Double(idx) * 0.028),
                             value: rowsVisible
                         )
                         .id(station.id)
@@ -79,20 +80,25 @@ struct AllStationsView: View {
                 .padding(.vertical, 1)
             }
             .onChange(of: state.selectedID) { id in
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                     proxy.scrollTo(id, anchor: .center)
                 }
             }
             // Directional slide transition driven by slideDirection
             .transition(slideTransition)
-            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: contentID)
+            .animation(.spring(response: 0.26, dampingFraction: 0.84), value: contentID)
         }
     }
 
     private var slideTransition: AnyTransition {
-        let insertion: AnyTransition = state.slideDirection == .right
-            ? .asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))
-            : .asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .trailing))
-        return insertion.combined(with: .opacity)
+        let (insertEdge, removeEdge): (Edge, Edge) = state.slideDirection == .right
+            ? (.trailing, .leading)
+            : (.leading, .trailing)
+        return .asymmetric(
+            insertion: .opacity.combined(with: .move(edge: insertEdge))
+                                .combined(with: .scale(scale: 0.97, anchor: .center)),
+            removal:   .opacity.combined(with: .move(edge: removeEdge))
+                                .combined(with: .scale(scale: 0.97, anchor: .center))
+        )
     }
 }

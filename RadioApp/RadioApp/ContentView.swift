@@ -14,23 +14,24 @@ struct ContentView: View {
 
             // Card container — both views stacked, crossfading
             ZStack {
-                // All Stations (light)
+                // All Stations (light) — exits upward, enters from below
                 AllStationsView(state: state)
                     .opacity(state.currentView == .stations ? 1 : 0)
-                    .scaleEffect(state.currentView == .stations ? 1 : 0.98)
-                    .offset(y: state.currentView == .stations ? 0 : -10)
+                    .scaleEffect(state.currentView == .stations ? 1 : 0.97, anchor: .center)
+                    .offset(y: state.currentView == .stations ? 0 : -8)
                     .allowsHitTesting(state.currentView == .stations)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.78), value: state.currentView)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.currentView)
 
-                // Now Playing (dark)
+                // Now Playing (dark) — enters from below, exits downward
                 NowPlayingView(state: state)
                     .opacity(state.currentView == .nowPlaying ? 1 : 0)
-                    .scaleEffect(state.currentView == .nowPlaying ? 1 : 0.98)
-                    .offset(y: state.currentView == .nowPlaying ? 0 : 10)
+                    .scaleEffect(state.currentView == .nowPlaying ? 1 : 0.97, anchor: .center)
+                    .offset(y: state.currentView == .nowPlaying ? 0 : 8)
                     .allowsHitTesting(state.currentView == .nowPlaying)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.78), value: state.currentView)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.82), value: state.currentView)
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
+            .compositingGroup()
             // Dual-layer drop shadow per spec §2
             .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
             .shadow(color: .black.opacity(0.10), radius: 2, x: 0, y: 1)

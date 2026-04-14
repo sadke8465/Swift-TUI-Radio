@@ -9,6 +9,8 @@ struct StationRowView: View {
     var isPlaying: Bool
     var isFavorite: Bool
 
+    @State private var isHovering: Bool = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Name row
@@ -47,17 +49,24 @@ struct StationRowView: View {
                 }
                 .padding(.top, 8)
                 .transition(
-                    .opacity.combined(with: .scale(scale: 0.96, anchor: .top))
+                    .opacity.combined(with: .scale(scale: 0.95, anchor: .top))
                 )
             }
         }
         .padding(6)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 2))
+        .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+        // Three-tier shadow: selected elevated, hovered lifted, default subtle
         .shadow(
-            color: .black.opacity(isSelected ? 0.10 : 0.07),
-            radius: isSelected ? 2 : 1
+            color: .black.opacity(isSelected ? 0.12 : (isHovering ? 0.09 : 0.06)),
+            radius: isSelected ? 3 : (isHovering ? 2 : 1)
         )
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isSelected)
+        .animation(.spring(response: 0.28, dampingFraction: 0.78), value: isSelected)
+        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isHovering)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                isHovering = hovering
+            }
+        }
     }
 }
