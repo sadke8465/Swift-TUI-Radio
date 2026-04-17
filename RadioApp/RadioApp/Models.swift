@@ -39,6 +39,9 @@ class AppState: ObservableObject {
     @Published var hasFirstLoaded: Bool = false
     @Published var isTransitioning: Bool = false
 
+    // Audio player
+    private var player: AVPlayer?
+
     // API-sourced data
     @Published var stations: [Station] = []
     @Published var userCountryCode: String = ""
@@ -230,9 +233,18 @@ class AppState: ObservableObject {
 
     func togglePlayback() {
         if playingID == selectedID {
+            player?.pause()
+            player = nil
             playingID = nil
         } else {
+            player?.pause()
+            player = nil
             playingID = selectedID
+            if let station = selectedStation, let url = URL(string: station.streamURL) {
+                let item = AVPlayerItem(url: url)
+                player = AVPlayer(playerItem: item)
+                player?.play()
+            }
         }
     }
 
